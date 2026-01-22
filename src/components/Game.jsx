@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components/macro";
 import rock from "../images/icon-rock.svg";
 import paper from "../images/icon-paper.svg";
@@ -293,9 +293,11 @@ function Game({ score, socket, forceReset, setScore, setScoreChange }) {
     socket.current.addEventListener("message", handleMessage);
     return () => {
       if (socket.current) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         socket.current.removeEventListener("message", handleMessage);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket.current, setScore]);
 
   const handlePieceClick = (choiceId) => {
