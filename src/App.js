@@ -33,7 +33,9 @@ function App() {
   const socket = useRef(null);
 
   useEffect(() => {
-    socket.current = new WebSocket("ws://localhost:8765");
+    // Use environment variable or fallback to localhost for development
+    const wsUrl = process.env.REACT_APP_WS_URL || "ws://localhost:8765";
+    socket.current = new WebSocket(wsUrl);
 
     socket.current.onopen = () => {
       console.log("✅ Connected to game server");
