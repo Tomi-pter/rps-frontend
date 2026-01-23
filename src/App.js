@@ -4,101 +4,111 @@ import Score from "./components/Score";
 import Game from "./components/Game";
 import Rules from "./components/Rules";
 
-const ResetDiv = styled.div`
+const JoinContainer = styled.div`
   display: flex;
-  margin: 1rem 0.5rem 1rem 0;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-`;
-
-const ResetBtn = styled.button`
-  background-color: rgb(255, 255, 255, 0);
-  padding: 0.5rem 2rem;
+  height: 60vh;
   color: white;
-  border: 1px solid white;
-  border-radius: 0.35rem;
   font-family: "BSB";
-  display: block;
-  text-transform: uppercase;
-  cursor: pointer;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+  input {
+    padding: 1rem;
+    margin: 1rem;
+    border-radius: 5px;
+    border: none;
+    width: 250px;
+  }
+  button {
+    padding: 1rem 2rem;
+    background: white;
+    color: #3b4363;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: "BB";
+    text-transform: uppercase;
   }
 `;
 
 function App() {
   const [score, setScore] = useState(0);
-  const [scoreChange, setScoreChange] = useState(false);
+  const [roomInput, setRoomInput] = useState("");
+  const [isJoined, setIsJoined] = useState(false);
   const [forceReset, setForceReset] = useState(false);
   const socket = useRef(null);
 
   useEffect(() => {
-    // Use environment variable or fallback to localhost for development
     const wsUrl = process.env.REACT_APP_WS_URL || "ws://localhost:8765";
     socket.current = new WebSocket(wsUrl);
 
-    socket.current.onopen = () => {
-      console.log("✅ Connected to game server");
-    };
-
-    // Use addEventListener instead of onmessage so both App and Game can receive messages
-    const handleAppMessage = (event) => {
+    const handleMessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("📨 App.js received:", data);
-
-      if (data.type === "RESTART") {
-        setForceReset((prev) => !prev);
-      }
+      if (data.type === "RESTART") setForceReset((prev) => !prev);
       if (data.type === "FULL_RESET") {
         setScore(0);
         setForceReset((prev) => !prev);
       }
+      if (data.type === "ERROR") alert(data.msg);
     };
 
-    socket.current.addEventListener("message", handleAppMessage);
-
-    socket.current.onerror = (error) => {
-      console.error("❌ WebSocket error:", error);
-    };
-
-    socket.current.onclose = (event) => {
-      console.log(
-        "🔌 Disconnected from game server. Code:",
-        event.code,
-        "Reason:",
-        event.reason,
-      );
-    };
-
-    return () => {
-      if (socket.current) {
-        socket.current.removeEventListener("message", handleAppMessage);
-        if (socket.current.readyState === WebSocket.OPEN) {
-          socket.current.close();
-        }
-      }
-    };
+    socket.current.addEventListener("message", handleMessage);
+    return () => socket.current?.removeEventListener("message", handleMessage);
   }, []);
 
-  const resetGame = () => {
-    if (socket.current?.readyState === WebSocket.OPEN) {
-      socket.current.send(JSON.stringify({ type: "RESET" }));
+  const handleJoin = () => {
+    if (roomInput && socket.current?.readyState === WebSocket.OPEN) {
+      socket.current.send(
+        JSON.stringify({ type: "JOIN_ROOM", room: roomInput }),
+      );
+      setIsJoined(true);
     }
+  };
+
+  const resetGame = () => {
+    socket.current?.send(JSON.stringify({ type: "RESET" }));
   };
 
   return (
     <>
-      <Score score={score} setScore={setScore} scoreChange={scoreChange} />
-      <Game
-        score={score}
-        socket={socket}
-        forceReset={forceReset}
-        setScore={setScore}
-        setScoreChange={setScoreChange}
-      />
-      <ResetDiv>
-        <ResetBtn onClick={resetGame}>Reset</ResetBtn>
-      </ResetDiv>
+      <Score score={score} setScore={setScore} />
+      {!isJoined ? (
+        <JoinContainer>
+          <h1>Enter Room Name</h1>
+          <input
+            type="text"
+            placeholder="e.g. Group-A"
+            value={roomInput}
+            onChange={(e) => setRoomInput(e.target.value)}
+          />
+          <button onClick={handleJoin}>Join Game</button>
+        </JoinContainer>
+      ) : (
+        <Game
+          score={score}
+          socket={socket}
+          forceReset={forceReset}
+          setScore={setScore}
+          setScoreChange={() => {}}
+        />
+      )}
+      <div
+        style={{ display: "flex", justifyContent: "center", marginTop: "1rem" }}
+      >
+        <button
+          onClick={resetGame}
+          style={{
+            background: "transparent",
+            border: "1px solid white",
+            color: "white",
+            padding: "0.5rem 2rem",
+            borderRadius: "5px",
+            cursor: "pointer",
+          }}
+        >
+          Reset Room
+        </button>
+      </div>
       <Rules />
     </>
   );

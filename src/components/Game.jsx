@@ -84,17 +84,21 @@ const GameOuterActive = styled.div`
   & .outcome {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    opacity: ${(props) => (props.animate === true ? "1" : "0")};
+    transition: opacity 500ms ease-in 1.5s;
   }
 
   & .outcome > p {
     font-family: "BB";
     text-transform: uppercase;
     font-size: 3rem;
+    color: white;
   }
 
-  & .outcome {
-    opacity: ${(props) => (props.animate === true ? "1" : "0")};
-    transition: opacity 500ms ease-in 1.5s;
+  & .userDiv,
+  & .houseContainer {
+    position: relative;
   }
 
   & .userDiv button {
@@ -108,11 +112,9 @@ const GameOuterActive = styled.div`
       border-radius: 50%;
       background-color: rgba(255, 255, 255, 0.1);
       animation: ${(props) =>
-        props.gameActive === true
-          ? (props) => (props.champ === "user" ? "declareWinner 1.5s" : "none")
+        props.gameActive === true && props.champ === "user"
+          ? "declareWinner 1.5s forwards 1.5s"
           : "none"};
-      animation-fill-mode: forwards;
-      animation-delay: 1.5s;
     }
   }
 
@@ -127,11 +129,9 @@ const GameOuterActive = styled.div`
       border-radius: 50%;
       background-color: rgba(255, 255, 255, 0.1);
       animation: ${(props) =>
-        props.gameActive === true
-          ? (props) => (props.champ === "house" ? "declareWinner 1.5s" : "none")
+        props.gameActive === true && props.champ === "house"
+          ? "declareWinner 1.5s forwards 1.5s"
           : "none"};
-      animation-fill-mode: forwards;
-      animation-delay: 1.5s;
     }
   }
 
@@ -142,13 +142,13 @@ const GameOuterActive = styled.div`
     66% {
       box-shadow:
         0 6px 0 60px rgba(255, 255, 255, 0.025),
-        0 6px 0 calc((60px) * 2 + 5px) rgba(255, 255, 255, 0.025);
+        0 6px 0 125px rgba(255, 255, 255, 0.025);
     }
     100% {
       box-shadow:
         0 6px 0 60px rgba(255, 255, 255, 0.025),
-        0 6px 0 calc((60px) * 2 + 5px) rgba(255, 255, 255, 0.025),
-        0 6px 0 calc((60px) * 3 + 25px) rgba(255, 255, 255, 0.025);
+        0 6px 0 125px rgba(255, 255, 255, 0.025),
+        0 6px 0 200px rgba(255, 255, 255, 0.025);
     }
   }
 
@@ -156,20 +156,11 @@ const GameOuterActive = styled.div`
     max-width: 80%;
     height: 30vh;
     margin: auto;
-
     & p {
       font-size: 0.8rem;
     }
-    & .outcome {
-      margin: 0 0.5rem;
-    }
-
     & .outcome > p {
-      font-size: 1rem;
-    }
-
-    & .houseContainer {
-      margin-top: -1rem;
+      font-size: 1.5rem;
     }
   }
 `;
@@ -184,35 +175,24 @@ const OutcomeBtn = styled.button`
   font-family: "BB";
   border: 1px solid white;
   box-shadow: 2px 2px 2.5px rgba(0, 0, 0, 0.25);
-  transition:
-    transform 250ms,
-    color 250ms;
   cursor: pointer;
 
-  :hover {
-    color: rgba(255, 0, 0, 0.5);
-    transform: translateY(2px);
+  &:hover {
+    color: red;
   }
-
-  :disabled {
+  &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  @media screen and (max-width: 1024px) {
-    padding: 0.5rem 2rem;
-    margin: 0.5rem;
   }
 `;
 
 const WaitingMessage = styled.p`
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.7) !important;
   font-style: italic;
   margin-top: 0.5rem;
 `;
 
-// Mapping for choice ID to color and image
 const CHOICE_MAP = {
   1: { color: "paper", bg: paper },
   2: { color: "scissors", bg: scissors },
@@ -227,9 +207,8 @@ function Game({ score, socket, forceReset, setScore, setScoreChange }) {
   const [isAnimated, setIsAnimated] = useState(false);
   const [waitingForOpponent, setWaitingForOpponent] = useState(false);
 
-  // Reset game when forceReset changes
+  // Sync with App.js for Resets
   useEffect(() => {
-    console.log("🔄 Force reset triggered");
     setActive(false);
     setIsAnimated(false);
     setMyChoice(null);
@@ -238,95 +217,61 @@ function Game({ score, socket, forceReset, setScore, setScoreChange }) {
     setWaitingForOpponent(false);
   }, [forceReset]);
 
-  // WebSocket message handler
+  // WebSocket Listener for Results
   useEffect(() => {
     if (!socket.current) return;
 
     const handleMessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("📨 Game.jsx received:", data);
-
       if (data.type === "RESULT") {
-        console.log(
-          "🎮 Result:",
-          data.result,
-          "| Opponent chose:",
-          data.opponentChoice,
-        );
         setOpponentChoice(data.opponentChoice);
         setGameResult(data.result);
         setIsAnimated(true);
         setWaitingForOpponent(false);
 
-        // Update score after 2.5 seconds
+        // Score update with delay to match animation
         setTimeout(() => {
-          if (data.result === "You win") {
-            setScore((prev) => prev + 1);
-          } else if (data.result === "You lose") {
-            setScore((prev) => prev - 1);
-          }
+          if (data.result === "You win") setScore((prev) => prev + 1);
+          if (data.result === "You lose") setScore((prev) => prev - 1);
         }, 2500);
       }
 
-      if (data.type === "RESTART") {
-        console.log("🔄 Restarting game...");
+      if (data.type === "RESTART" || data.type === "FULL_RESET") {
         setActive(false);
         setIsAnimated(false);
         setMyChoice(null);
         setOpponentChoice(null);
         setGameResult("");
         setWaitingForOpponent(false);
-      }
-
-      if (data.type === "FULL_RESET") {
-        console.log("🔄 Full reset received");
-        setActive(false);
-        setIsAnimated(false);
-        setMyChoice(null);
-        setOpponentChoice(null);
-        setGameResult("");
-        setWaitingForOpponent(false);
-        setScore(0);
       }
     };
 
     socket.current.addEventListener("message", handleMessage);
-    return () => {
-      if (socket.current) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        socket.current.removeEventListener("message", handleMessage);
-      }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => socket.current?.removeEventListener("message", handleMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket.current, setScore]);
 
   const handlePieceClick = (choiceId) => {
-    console.log("🎯 Player chose:", choiceId);
-    setMyChoice(parseInt(choiceId));
+    const id = parseInt(choiceId);
+    setMyChoice(id);
     setActive(true);
     setScoreChange(true);
 
     if (socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(
-        JSON.stringify({
-          type: "MOVE",
-          choice: choiceId,
-          isBonus: false,
-        }),
+        JSON.stringify({ type: "MOVE", choice: id, isBonus: false }),
       );
-      console.log("📤 Sent MOVE:", choiceId);
     }
   };
 
   const handlePlayAgain = () => {
     if (socket.current?.readyState === WebSocket.OPEN) {
       socket.current.send(JSON.stringify({ type: "PLAY_AGAIN" }));
-      console.log("📤 Sent PLAY_AGAIN");
       setWaitingForOpponent(true);
     }
   };
 
-  // Determine winner for display
   const getChampion = () => {
     if (gameResult === "You win") return "user";
     if (gameResult === "You lose") return "house";
@@ -410,4 +355,3 @@ function Game({ score, socket, forceReset, setScore, setScoreChange }) {
 }
 
 export default Game;
-export { GamePiece };
