@@ -337,7 +337,7 @@ function Game({ score, socket, forceReset, setScore, setScoreChange }) {
             )}
           </div>
           <div className="houseContainer">
-            <p>THE HOUSE PICKED</p>
+            <p>YOUR OPP PICKED</p>
             <GamePiece
               className="theHouse"
               $color={CHOICE_MAP[opponentChoice]?.color || ""}
